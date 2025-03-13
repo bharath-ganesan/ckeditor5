@@ -12,7 +12,6 @@ import { addBackgroundRules, addBorderRules, type ViewElement, type Conversion, 
 
 import TableEditing from '../tableediting.js';
 import {
-	downcastAttributeToStyle,
 	downcastTableAttribute,
 	upcastBorderStyles,
 	upcastStyleToAttribute
@@ -119,6 +118,24 @@ export default class TablePropertiesEditing extends Plugin {
 			styleName: 'background-color',
 			defaultValue: defaultTableProperties.backgroundColor
 		} );
+		conversion.for( 'upcast' ).attributeToAttribute( {
+			view: {
+				name: 'table',
+				attributes: {
+					class: /ck-custom-background-color/,
+					'background-color': /[\s\S]+/
+				}
+			},
+			model: {
+				key: 'tableBackgroundColor',
+				value: ( viewElement: ViewElement ) => {
+					const value = viewElement.getAttribute( 'background-color' );
+					if ( value && defaultTableProperties.backgroundColor !== value ) {
+						return value;
+					}
+				}
+			}
+		} );
 		editor.commands.add(
 			'tableBackgroundColor',
 			new TableBackgroundColorCommand( editor, defaultTableProperties.backgroundColor )
@@ -162,20 +179,50 @@ function enableAlignmentProperty( schema: Schema, conversion: Conversion, defaul
 		allowAttributes: [ 'tableAlignment' ]
 	} );
 
-	conversion.for( 'downcast' )
-		.attributeToAttribute( {
-			model: {
-				name: 'table',
-				key: 'tableAlignment'
-			},
-			view: alignment => ( {
-				key: 'style',
-				value: {
-					// Model: `alignment:center` => CSS: `float:none`.
-					float: alignment === 'center' ? 'none' : alignment
+	conversion.for( 'downcast' ).add( dispatcher => {
+		return dispatcher.on( `attribute:${ 'tableAlignment' }:table`, ( evt, data, conversionApi ) => {
+			const { item, attributeNewValue } = data;
+			const { mapper, writer } = conversionApi;
+			if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+				return;
+			}
+			const parentChildren = mapper.toViewElement( item )?.parent?.getChildren?.();
+			if ( parentChildren ) {
+				const figureEl = [ ...parentChildren ].find( c => c?.is?.( 'element', 'figure' ) );
+				const className = 'ck-custom-alignment';
+				if ( figureEl && attributeNewValue ) {
+					writer.addClass( className, figureEl );
+					const alignment = attributeNewValue === 'center' ? 'none' : attributeNewValue;
+					writer.setAttribute( 'alignment', alignment, null, figureEl );
+				} else {
+					writer.removeClass( className, figureEl );
+					writer.removeAttribute( 'alignment', null, figureEl );
 				}
-			} ),
-			converterPriority: 'high'
+			}
+		} );
+	} );
+
+	conversion.for( 'upcast' )
+		.attributeToAttribute( {
+			view: {
+				name: /^(table|figure)$/,
+				attributes: {
+					class: /ck-custom-alignment/,
+					alignment: FLOAT_VALUES_REG_EXP
+				}
+			},
+			model: {
+				key: 'tableAlignment',
+				value: ( viewElement: ViewElement ) => {
+					let align = viewElement.getAttribute( 'alignment' );
+					// CSS: `float:none` => Model: `alignment:center`.
+					if ( align === 'none' ) {
+						align = 'center';
+					}
+
+					return align === defaultValue ? null : align;
+				}
+			}
 		} );
 
 	conversion.for( 'upcast' )
@@ -255,7 +302,7 @@ function enableTableToFigureProperty(
 		defaultValue: string;
 	}
 ) {
-	const { modelAttribute } = options;
+	const { modelAttribute, styleName, defaultValue } = options;
 
 	schema.extend( 'table', {
 		allowAttributes: [ modelAttribute ]
@@ -267,5 +314,46 @@ function enableTableToFigureProperty(
 		...options
 	} );
 
-	downcastAttributeToStyle( conversion, { modelElement: 'table', ...options } );
+	conversion.for( 'upcast' ).attributeToAttribute( {
+		view: {
+			name: /^(table|figure)$/,
+			attributes: {
+				class: `ck-custom-${ styleName }`,
+				[ styleName ]: /[\s\S]+/
+			}
+		},
+		model: {
+			key: modelAttribute,
+			value: ( viewElement: ViewElement ) => {
+				const value = viewElement.getAttribute( styleName );
+				if ( defaultValue !== value ) {
+					// return `${ value }px`;
+					return value;
+				}
+			}
+		}
+	} );
+
+	conversion.for( 'downcast' ).add( dispatcher => {
+		return dispatcher.on( `attribute:${ modelAttribute }:table`, ( evt, data, conversionApi ) => {
+			const { item, attributeNewValue } = data;
+			const { mapper, writer } = conversionApi;
+			if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+				return;
+			}
+			const parentChildren = mapper.toViewElement( item )?.parent?.getChildren?.();
+			if ( parentChildren ) {
+				const figureEl = [ ...parentChildren ].find( c => c?.is?.( 'element', 'figure' ) );
+				const className = `ck-custom-${ styleName }`;
+				if ( figureEl && attributeNewValue ) {
+					writer.addClass( className, figureEl );
+					// const value = attributeNewValue?.replace?.( /px/g, '' ) ?? attributeNewValue;
+					writer.setAttribute( styleName, attributeNewValue, null, figureEl );
+				} else {
+					writer.removeClass( className, figureEl );
+					writer.removeAttribute( styleName, null, figureEl );
+				}
+			}
+		} );
+	} );
 }

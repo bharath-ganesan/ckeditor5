@@ -394,18 +394,43 @@ export default class TableColumnResizeEditing extends Plugin {
 			}
 		} );
 
-		conversion.for( 'downcast' ).attributeToAttribute( {
-			model: {
-				name: 'table',
-				key: 'tableWidth'
-			},
-			view: ( width: string ) => ( {
-				name: 'figure',
-				key: 'style',
-				value: {
-					width
+		conversion.for( 'upcast' ).attributeToAttribute( {
+			view: {
+				name: /^(table|figure)$/,
+				attributes: {
+					class: /ck-custom-width/,
+					width: /[\s\S]+/
 				}
-			} )
+			},
+			model: {
+				key: 'tableWidth',
+				value: ( viewElement: ViewElement ) => {
+					const value = viewElement.getAttribute( 'width' );
+					return value;
+				}
+			}
+		} );
+
+		conversion.for( 'downcast' ).add( dispatcher => {
+			return dispatcher.on( `attribute:${ 'tableWidth' }:table`, ( evt, data, conversionApi ) => {
+				const { item, attributeNewValue } = data;
+				const { mapper, writer } = conversionApi;
+				if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+					return;
+				}
+				const parentChildren = mapper.toViewElement( item )?.parent?.getChildren?.();
+				if ( parentChildren ) {
+					const figureEl = [ ...parentChildren ].find( c => c?.is?.( 'element', 'figure' ) );
+					const className = 'ck-custom-width';
+					if ( figureEl && attributeNewValue ) {
+						writer.addClass( className, figureEl );
+						writer.setAttribute( 'width', attributeNewValue, null, figureEl );
+					} else {
+						writer.removeClass( className, figureEl );
+						writer.removeAttribute( 'width', null, figureEl );
+					}
+				}
+			} );
 		} );
 
 		conversion.elementToElement( { model: 'tableColumnGroup', view: 'colgroup' } );

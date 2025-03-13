@@ -127,8 +127,9 @@ function generatePixelPreset( definition: string | FontSizeOption ): FontSizeOpt
 
 	definition.view = {
 		name: 'span',
-		styles: {
-			'font-size': definition.model!
+		attributes: {
+			class: 'ck-custom-font-size',
+			fontSize: definition.model!
 		}
 	};
 

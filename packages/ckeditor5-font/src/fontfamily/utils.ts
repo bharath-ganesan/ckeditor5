@@ -72,8 +72,9 @@ function generateFontPreset( fontDefinition: string ): FontFamilyOption {
 		model: cssFontNames,
 		view: {
 			name: 'span',
-			styles: {
-				'font-family': cssFontNames
+			attributes: {
+				class: `ck-custom-font-${ firstFontName?.toLowerCase()?.replace( / /g, '-' ) ?? '' }`, // 'ck-custom-font-family',
+				fontFamily: cssFontNames
 			},
 			priority: 7
 		}

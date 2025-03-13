@@ -140,8 +140,11 @@ export default class FontSizeEditing extends Plugin {
 				if ( !attributeValue ) {
 					return;
 				}
-
-				return writer.createAttributeElement( 'span', { style: 'font-size:' + attributeValue }, { priority: 7 } );
+				console.log( 'attributeValue downcast => ', attributeValue );
+				return writer.createAttributeElement( 'span', {
+					class: 'ck-custom-font-size',
+					fontSize: attributeValue // attributeValue?.replace?.( /px/g, '' )?.trim?.()
+				}, { priority: 7 } );
 			}
 		} );
 
@@ -154,6 +157,26 @@ export default class FontSizeEditing extends Plugin {
 				name: 'span',
 				styles: {
 					'font-size': /.*/
+				}
+			}
+		} );
+
+		// Adds support for custom class font-size formatting.
+		editor.conversion.for( 'upcast' ).elementToAttribute( {
+			model: {
+				key: FONT_SIZE,
+				value: ( viewElement: ViewElement ) => {
+					const fontSize = viewElement.getAttribute( 'fontsize' );
+					console.log( 'upcast fontSize => ', fontSize );
+					return fontSize;
+					// return fontSize ? `${ fontSize }px` : 'default';
+				}
+			},
+			view: {
+				name: 'span',
+				attributes: {
+					class: 'ck-custom-font-size',
+					fontsize: /.*/
 				}
 			}
 		} );

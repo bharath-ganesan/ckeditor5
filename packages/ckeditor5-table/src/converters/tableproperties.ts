@@ -107,6 +107,29 @@ export function upcastBorderStyles(
 			'border-left-style'
 		].filter( styleName => data.viewItem.hasStyle( styleName ) );
 
+		const modelElement = [ ...data.modelRange.getItems( { shallow: true } ) ].pop();
+
+		// custom class and attribute upcast formatting
+		if ( data.viewItem.hasClass( 'ck-custom-border-color' ) ) {
+			const borderColor = data.viewItem.getAttribute( 'border-color' );
+			if ( borderColor ) {
+				conversionApi.writer.setAttribute( 'tableBorderColor', borderColor, modelElement );
+			}
+		}
+		if ( data.viewItem.hasClass( 'ck-custom-border-width' ) ) {
+			const borderWidth = data.viewItem.getAttribute( 'border-width' );
+			if ( borderWidth ) {
+				conversionApi.writer.setAttribute( 'tableBorderWidth', borderWidth, modelElement );
+				// conversionApi.writer.setAttribute( 'tableBorderWidth', `${ borderWidth }px`, modelElement );
+			}
+		}
+		if ( data.viewItem.hasClass( 'ck-custom-border-style' ) ) {
+			const borderStyle = data.viewItem.getAttribute( 'border-style' );
+			if ( borderStyle ) {
+				conversionApi.writer.setAttribute( 'tableBorderStyle', borderStyle, modelElement );
+			}
+		}
+
 		if ( !stylesToConsume.length ) {
 			return;
 		}
@@ -119,8 +142,6 @@ export function upcastBorderStyles(
 		if ( !conversionApi.consumable.test( data.viewItem, matcherPattern ) ) {
 			return;
 		}
-
-		const modelElement = [ ...data.modelRange.getItems( { shallow: true } ) ].pop();
 
 		conversionApi.consumable.consume( data.viewItem, matcherPattern );
 
@@ -198,11 +219,14 @@ export function downcastTableAttribute(
 		}
 
 		const table = [ ...mapper.toViewElement( item ).getChildren() ].find( child => child.is( 'element', 'table' ) );
-
+		const className = `ck-custom-${ styleName }`;
 		if ( attributeNewValue ) {
-			writer.setStyle( styleName, attributeNewValue, table );
+			writer.addClass( className, table );
+			// const formattedValue = styleName === 'border-width' ? attributeNewValue?.replace?.( /px/g, '' ) : attributeNewValue;
+			writer.setAttribute( styleName, attributeNewValue, null, table );
 		} else {
-			writer.removeStyle( styleName, table );
+			writer.removeClass( className, table );
+			writer.removeAttribute( styleName, null, table );
 		}
 	} ) );
 }

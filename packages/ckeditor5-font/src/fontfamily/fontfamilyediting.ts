@@ -96,11 +96,50 @@ export default class FontFamilyEditing extends Plugin {
 	 */
 	private _prepareAnyValueConverters(): void {
 		const editor = this.editor;
+		const fontMappings = [
+			{
+				'name': 'arial',
+				'value': 'Arial, Helvetica, sans-serif'
+			},
+			{
+				'name': 'courier-new',
+				'value': '\'Courier New\', Courier, monospace'
+			},
+			{
+				'name': 'georgia',
+				'value': 'Georgia, serif'
+			},
+			{
+				'name': 'lucida-sans-unicode',
+				'value': '\'Lucida Sans Unicode\', \'Lucida Grande\', sans-serif'
+			},
+			{
+				'name': 'tahoma',
+				'value': 'Tahoma, Geneva, sans-serif'
+			},
+			{
+				'name': 'times-new-roman',
+				'value': '\'Times New Roman\', Times, serif'
+			},
+			{
+				'name': 'trebuchet-ms',
+				'value': '\'Trebuchet MS\', Helvetica, sans-serif'
+			},
+			{
+				'name': 'verdana',
+				'value': 'Verdana, Geneva, sans-serif'
+			}
+		];
 
 		editor.conversion.for( 'downcast' ).attributeToElement( {
 			model: FONT_FAMILY,
 			view: ( attributeValue, { writer } ) => {
-				return writer.createAttributeElement( 'span', { style: 'font-family:' + attributeValue }, { priority: 7 } );
+				const fontName = attributeValue?.split( ',' )?.[ 0 ] || '';
+				if ( fontName ) {
+					return writer.createAttributeElement( 'span', {
+						class: `ck-custom-font-${ fontName?.toLowerCase()?.replace?.( / /g, '-' )?.replace?.( /'/g, '' ) ?? '' }`
+					}, { priority: 7 } );
+				}
 			}
 		} );
 
@@ -113,6 +152,27 @@ export default class FontFamilyEditing extends Plugin {
 				name: 'span',
 				styles: {
 					'font-family': /.*/
+				}
+			}
+		} );
+
+		// Adds support for custom class font-family formatting.
+		editor.conversion.for( 'upcast' ).elementToAttribute( {
+			model: {
+				key: FONT_FAMILY,
+				value: ( viewElement: ViewElement ) => {
+					const attrClass = viewElement.getAttribute( 'class' ) || '';
+					const ckFontClass = attrClass.split( ' ' )?.find( c => c?.includes?.( 'ck-custom-font-' ) ) || '';
+					const fontKey = ckFontClass.replace( 'ck-custom-font-', '' );
+					if ( fontKey ) {
+						const fontValue = fontMappings.find( f => f.name === fontKey )?.value;
+						return fontValue;
+					}
+				}
+			},
+			view: {
+				attributes: {
+					class: /^(ck-custom-font-(arial|courier-new|georgia|lucida-sans-unicode|tahoma|times-new-roman|trebuchet-ms|verdana))$/
 				}
 			}
 		} );

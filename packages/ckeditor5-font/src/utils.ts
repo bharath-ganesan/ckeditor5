@@ -93,7 +93,9 @@ export function renderUpcastAttribute( styleAttr: string ) {
 export function renderDowncastElement( styleAttr: string ) {
 	return ( modelAttributeValue: string, { writer }: DowncastConversionApi ): ViewAttributeElement =>
 		writer.createAttributeElement( 'span', {
-			style: `${ styleAttr }:${ modelAttributeValue }`
+			// style: `${ styleAttr }:${ modelAttributeValue }`
+			class: `ck-custom-${ styleAttr }`,
+			[ styleAttr ]: modelAttributeValue
 		}, { priority: 7 } );
 }
 
@@ -145,7 +147,7 @@ export function addColorSelectorToDropdown(
  * Fixes the color value string.
  */
 function normalizeColorCode( value: string ): string {
-	return value.replace( /\s/g, '' );
+	return value?.replace?.( /\s/g, '' ) ?? '';
 }
 
 export type ColorSelectorDropdownView = DropdownView & {

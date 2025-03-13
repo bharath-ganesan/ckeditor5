@@ -123,6 +123,23 @@ export default class FontBackgroundColorEditing extends Plugin {
 			}
 		} );
 
+		// Support custom class color formatting.
+		editor.conversion.for( 'upcast' ).elementToAttribute( {
+			view: {
+				name: 'span',
+				attributes: {
+					class: /ck-custom-background-color/,
+					'background-color': /[\s\S]+/
+				}
+			},
+			model: {
+				key: FONT_BACKGROUND_COLOR,
+				value: ( viewElement: any ) => {
+					return viewElement.getAttribute( 'background-color' );
+				}
+			}
+		} );
+
 		editor.conversion.for( 'downcast' ).attributeToElement( {
 			model: FONT_BACKGROUND_COLOR,
 			view: renderDowncastElement( 'background-color' )

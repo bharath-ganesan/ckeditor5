@@ -239,7 +239,7 @@ export function normalizeColumnWidths( columnWidths: Array<string> ): Array<stri
 			return width;
 		}
 
-		return parseFloat( width.replace( '%', '' ) );
+		return parseFloat( width?.replace?.( '%', '' ) );
 	} );
 
 	let normalizedWidths: Array<number> = calculateMissingColumnWidths( widths );

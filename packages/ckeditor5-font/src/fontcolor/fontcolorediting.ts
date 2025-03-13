@@ -135,6 +135,21 @@ export default class FontColorEditing extends Plugin {
 			}
 		} );
 
+		// Support custom class color formatting.
+		editor.conversion.for( 'upcast' ).elementToAttribute( {
+			view: {
+				name: 'span',
+				attributes: {
+					class: /ck-custom-color/,
+					'color': /[\s\S]+/
+				}
+			},
+			model: {
+				key: FONT_COLOR,
+				value: ( viewElement: ViewElement ) => viewElement.getAttribute( 'color' )
+			}
+		} );
+
 		editor.conversion.for( 'downcast' ).attributeToElement( {
 			model: FONT_COLOR,
 			view: renderDowncastElement( 'color' )

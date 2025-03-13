@@ -70,10 +70,26 @@ export default class AlignmentEditing extends Plugin {
 			editor.conversion.attributeToAttribute( buildClassDefinition( optionsToConvert ) );
 		} else {
 			// Downcast inline styles.
-			editor.conversion.for( 'downcast' ).attributeToAttribute( buildDowncastInlineDefinition( optionsToConvert ) );
+			editor.conversion.for( 'downcast' ).attributeToAttribute( buildDowncastCustomClassDefinition( optionsToConvert ) );
 		}
 
 		const upcastInlineDefinitions = buildUpcastInlineDefinitions( optionsToConvert );
+
+		// Prepare upcast definitions for custom alignment classes.
+		editor.conversion.for( 'upcast' ).attributeToAttribute( {
+			view: {
+				attributes: {
+					class: /ck-custom-alignment/,
+					alignment: /.*/
+				}
+			},
+			model: {
+				key: 'alignment',
+				value: ( viewElement: any ) => {
+					return viewElement.getAttribute( 'alignment' );
+				}
+			}
+		} );
 
 		// Always upcast from inline styles.
 		for ( const definition of upcastInlineDefinitions ) {
@@ -92,17 +108,15 @@ export default class AlignmentEditing extends Plugin {
 }
 
 /**
- * Prepare downcast conversion definition for inline alignment styling.
+ * Prepare downcast conversion definition for alignment styling.
  */
-function buildDowncastInlineDefinition( options: Array<AlignmentFormat> ) {
-	const view: Record<string, { key: 'style'; value: { 'text-align': SupportedOption } }> = {};
 
+function buildDowncastCustomClassDefinition( options: Array<AlignmentFormat> ) {
+	const view: Record<string, { key: 'align'; value: SupportedOption }> = {};
 	for ( const { name } of options ) {
 		view[ name ] = {
-			key: 'style',
-			value: {
-				'text-align': name
-			}
+			key: 'align',
+			value: name
 		};
 	}
 
