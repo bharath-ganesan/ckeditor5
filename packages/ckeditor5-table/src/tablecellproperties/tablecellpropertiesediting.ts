@@ -189,10 +189,8 @@ function enableHorizontalAlignmentProperty( schema: Schema, conversion: Conversi
 				key: 'tableCellHorizontalAlignment'
 			},
 			view: alignment => ( {
-				key: 'style',
-				value: {
-					'text-align': alignment
-				}
+				key: 'align',
+				value: alignment
 			} )
 		} );
 
@@ -244,17 +242,41 @@ function enableVerticalAlignmentProperty( schema: Schema, conversion: Conversion
 	} );
 
 	conversion.for( 'downcast' )
+		.add( dispatcher => dispatcher.on( 'attribute:tableCellVerticalAlignment:tableCell', ( evt, data, conversionApi ) => {
+			const { item, attributeNewValue } = data;
+			const { mapper, writer } = conversionApi;
+			if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+				return;
+			}
+
+			const mapViewElement = mapper.toViewElement( item );
+			if ( attributeNewValue ) {
+				writer.addClass( 'ck-custom-vertical-align', mapViewElement );
+				writer.setAttribute( 'vertical-align', attributeNewValue, null, mapViewElement );
+			} else {
+				writer.removeClass( 'ck-custom-vertical-align', mapViewElement );
+				writer.removeAttribute( 'vertical-align', null, mapViewElement );
+			}
+		} ) );
+
+	conversion.for( 'upcast' )
+		// Support for the `vertical-align:*;` CSS definition for the table cell alignment.
 		.attributeToAttribute( {
-			model: {
-				name: 'tableCell',
-				key: 'tableCellVerticalAlignment'
-			},
-			view: alignment => ( {
-				key: 'style',
-				value: {
-					'vertical-align': alignment
+			view: {
+				name: /^(td|th)$/,
+				attributes: {
+					class: /ck-custom-vertical-align/,
+					'vertical-align': VALIGN_VALUES_REG_EXP
 				}
-			} )
+			},
+			model: {
+				key: 'tableCellVerticalAlignment',
+				value: ( viewElement: ViewElement ) => {
+					const align = viewElement.getAttribute( 'vertical-align' );
+
+					return align === defaultValue ? null : align;
+				}
+			}
 		} );
 
 	conversion.for( 'upcast' )

@@ -169,6 +169,59 @@ export function upcastBorderStyles(
 			conversionApi.writer.setAttribute( modelAttributes.width, reducedBorder.width, modelElement );
 		}
 	} ) );
+	if ( viewElementName === 'td' || viewElementName === 'th' ) {
+		conversion.for( 'upcast' ).add( dispatcher => dispatcher.on( 'element:' + viewElementName, ( evt, data, conversionApi ) => {
+			// If the element was not converted by element-to-element converter,
+			// we should not try to convert the style. See #8393.
+			if ( !data.modelRange ) {
+				return;
+			}
+
+			const classesToConsume = [
+				'ck-custom-border-style',
+				'ck-custom-border-color',
+				'ck-custom-border-width',
+				'ck-custom-background-color',
+				'ck-custom-height',
+				'ck-custom-width',
+				'ck-custom-vertical-align',
+				'ck-custom-padding'
+			].filter( styleName => data.viewItem.hasClass( styleName ) );
+
+			if ( !classesToConsume.length ) {
+				return;
+			}
+
+			const matcherPattern = {
+				class: classesToConsume
+			};
+
+			// Try to consume appropriate values from consumable values list.
+			if ( !conversionApi.consumable.test( data.viewItem, matcherPattern ) ) {
+				return;
+			}
+
+			const classMapping: any = {
+				'border-style': 'tableCellBorderStyle',
+				'border-color': 'tableCellBorderColor',
+				'border-width': 'tableCellBorderWidth',
+				'background-color': 'tableCellBackgroundColor',
+				'width': 'tableCellWidth',
+				'height': 'tableCellHeight',
+				'padding': 'tableCellPadding'
+			};
+
+			const modelElement = [ ...data.modelRange.getItems( { shallow: true } ) ].pop();
+
+			conversionApi.consumable.consume( data.viewItem, matcherPattern );
+			const attrsValue = data.viewItem?._attrs ?? {};
+			for ( const [ key, value ] of attrsValue ) {
+				if ( classMapping && classMapping[ key ] ) {
+					conversionApi.writer.setAttribute( classMapping[ key ], value, modelElement );
+				}
+			}
+		} ) );
+	}
 }
 
 /**
@@ -182,20 +235,27 @@ export function downcastAttributeToStyle(
 		styleName: string;
 	}
 ): void {
-	const { modelElement, modelAttribute, styleName } = options;
+	const { modelAttribute, styleName } = options;
 
-	conversion.for( 'downcast' ).attributeToAttribute( {
-		model: {
-			name: modelElement,
-			key: modelAttribute
-		},
-		view: modelAttributeValue => ( {
-			key: 'style',
-			value: {
-				[ styleName ]: modelAttributeValue
+	conversion.for( 'downcast' )
+		.add( dispatcher => dispatcher.on( `attribute:${ modelAttribute }:tableCell`, ( evt, data, conversionApi ) => {
+			const { item, attributeNewValue } = data;
+			const { mapper, writer } = conversionApi;
+
+			if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+				return;
 			}
-		} )
-	} );
+
+			const mapViewElement = mapper.toViewElement( item );
+
+			if ( attributeNewValue ) {
+				writer.addClass( `ck-custom-${ styleName }`, mapViewElement );
+				writer.setAttribute( styleName, attributeNewValue, null, mapViewElement );
+			} else {
+				writer.removeClass( `ck-custom-${ styleName }`, mapViewElement );
+				writer.removeAttribute( styleName, null, mapViewElement );
+			}
+		} ) );
 }
 
 /**

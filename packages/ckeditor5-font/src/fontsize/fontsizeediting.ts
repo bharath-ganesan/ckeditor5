@@ -140,7 +140,6 @@ export default class FontSizeEditing extends Plugin {
 				if ( !attributeValue ) {
 					return;
 				}
-				console.log( 'attributeValue downcast => ', attributeValue );
 				return writer.createAttributeElement( 'span', {
 					class: 'ck-custom-font-size',
 					fontSize: attributeValue // attributeValue?.replace?.( /px/g, '' )?.trim?.()
