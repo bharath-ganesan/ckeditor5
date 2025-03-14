@@ -461,6 +461,54 @@ export default class TableColumnResizeEditing extends Plugin {
 			}
 		} );
 
+		conversion.for( 'upcast' ).attributeToAttribute( {
+			view: {
+				name: 'col',
+				attributes: {
+					class: /ck-custom-width/,
+					width: /.*/
+				}
+			},
+			model: {
+				key: 'columnWidth',
+				value: ( viewElement: ViewElement ) => {
+					const viewColWidth = viewElement.getAttribute( 'width' );
+					// 'pt' is the default unit for table column width pasted from MS Office.
+					// See https://github.com/ckeditor/ckeditor5/issues/14521#issuecomment-1662102889 for more details.
+					if ( !viewColWidth ||
+						( !viewColWidth.endsWith( '%' ) && !viewColWidth.endsWith( 'pt' ) ) ||
+						viewColWidth?.includes( 'NaN' ) ) {
+						return 'auto';
+					}
+					return viewColWidth;
+				}
+			}
+		} );
+
+		conversion.for( 'upcast' ).attributeToAttribute( {
+			view: {
+				name: 'colgroup',
+				attributes: {
+					class: /ck-custom-width/,
+					width: /.*/
+				}
+			},
+			model: {
+				key: 'columnWidth',
+				value: ( viewElement: ViewElement ) => {
+					const viewColWidth = viewElement.getAttribute( 'width' );
+					// 'pt' is the default unit for table column width pasted from MS Office.
+					// See https://github.com/ckeditor/ckeditor5/issues/14521#issuecomment-1662102889 for more details.
+					if ( !viewColWidth ||
+						( !viewColWidth.endsWith( '%' ) && !viewColWidth.endsWith( 'pt' ) ) ||
+						viewColWidth?.includes( 'NaN' ) ) {
+						return 'auto';
+					}
+					return viewColWidth;
+				}
+			}
+		} );
+
 		// The `col[span]` attribute is present in tables pasted from MS Excel. We use it to set the temporary `colSpan` model attribute,
 		// which is consumed during the `colgroup` element upcast.
 		// See https://github.com/ckeditor/ckeditor5/issues/14521#issuecomment-1662102889 for more details.
@@ -472,12 +520,25 @@ export default class TableColumnResizeEditing extends Plugin {
 			model: 'colSpan'
 		} );
 
-		conversion.for( 'downcast' ).attributeToAttribute( {
-			model: {
-				name: 'tableColumn',
-				key: 'columnWidth'
-			},
-			view: width => ( { key: 'style', value: { width } } )
+		conversion.for( 'downcast' ).add( dispatcher => {
+			return dispatcher.on( `attribute:${ 'columnWidth' }:tableColumn`, ( evt, data, conversionApi ) => {
+				const { item, attributeNewValue } = data;
+				const { mapper, writer } = conversionApi;
+				if ( !conversionApi.consumable.consume( data.item, evt.name ) ) {
+					return;
+				}
+				if ( !attributeNewValue?.includes?.( 'NaN' ) && mapper.toViewElement( item )?.is?.( 'element', 'col' ) ) {
+					const viewElement = mapper.toViewElement( item );
+					const className = 'ck-custom-width';
+					if ( attributeNewValue ) {
+						writer.addClass( className, viewElement );
+						writer.setAttribute( 'width', attributeNewValue, null, viewElement );
+					} else {
+						writer.removeClass( className, viewElement );
+						writer.removeAttribute( 'width', null, viewElement );
+					}
+				}
+			} );
 		} );
 	}
 
@@ -586,7 +647,8 @@ export default class TableColumnResizeEditing extends Plugin {
 				const viewColElement = viewWriter.createEmptyElement( 'col' );
 				const columnWidthInPc = `${ toPrecision( columnWidthsInPx[ i ] / sumArray( columnWidthsInPx ) * 100 ) }%`;
 
-				viewWriter.setStyle( 'width', columnWidthInPc, viewColElement );
+				viewWriter.addClass( 'ck-custom-width', viewColElement );
+				viewWriter.setAttribute( 'width', columnWidthInPc, false, viewColElement );
 				viewWriter.insert( viewWriter.createPositionAt( colgroup, 'end' ), viewColElement );
 			}
 
@@ -605,7 +667,13 @@ export default class TableColumnResizeEditing extends Plugin {
 
 			viewWriter.addClass( 'ck-table-resized', viewTable );
 			viewWriter.addClass( 'ck-table-column-resizer__active', resizingData.elements.viewResizer );
-			viewWriter.setStyle( 'width', `${ toPrecision( figureInitialPcWidth * 100 ) }%`, viewTable.findAncestor( 'figure' )! );
+			if ( figureInitialPcWidth ) {
+				viewWriter.addClass( 'ck-custom-width', viewTable.findAncestor( 'figure' )! );
+				viewWriter.setAttribute( 'width',
+					`${ toPrecision( figureInitialPcWidth * 100 ) }%`,
+					false,
+					viewTable.findAncestor( 'figure' )! );
+			}
 		}
 	}
 
@@ -673,16 +741,20 @@ export default class TableColumnResizeEditing extends Plugin {
 		this.editor.editing.view.change( writer => {
 			const leftColumnWidthAsPercentage = toPrecision( ( leftColumnWidth + dx ) * 100 / tableWidth );
 
-			writer.setStyle( 'width', `${ leftColumnWidthAsPercentage }%`, viewLeftColumn );
+			const className = 'ck-custom-width';
+			writer.setAttribute( 'width', `${ leftColumnWidthAsPercentage }%`, false, viewLeftColumn );
+			writer.addClass( className, viewLeftColumn );
 
 			if ( isRightEdge ) {
 				const tableWidthAsPercentage = toPrecision( ( tableWidth + dx ) * 100 / viewFigureParentWidth );
 
-				writer.setStyle( 'width', `${ tableWidthAsPercentage }%`, viewFigure );
+				writer.setAttribute( 'width', `${ tableWidthAsPercentage }%`, false, viewFigure );
+				writer.addClass( className, viewFigure );
 			} else {
 				const rightColumnWidthAsPercentage = toPrecision( ( rightColumnWidth! - dx ) * 100 / tableWidth );
 
-				writer.setStyle( 'width', `${ rightColumnWidthAsPercentage }%`, viewRightColumn! );
+				writer.setAttribute( 'width', `${ rightColumnWidthAsPercentage }%`, false, viewRightColumn! );
+				writer.addClass( className, viewRightColumn! );
 			}
 		} );
 	}
@@ -717,12 +789,12 @@ export default class TableColumnResizeEditing extends Plugin {
 			this.getTableColumnsWidths( tableColumnGroup )! :
 			null;
 
-		const columnWidthsAttributeNew = viewColumns.map( column => column.getStyle( 'width' ) );
+		const columnWidthsAttributeNew = viewColumns.map( column => column.getAttribute( 'width' ) );
 
 		const isColumnWidthsAttributeChanged = !isEqual( columnWidthsAttributeOld, columnWidthsAttributeNew );
 
 		const tableWidthAttributeOld = modelTable.getAttribute( 'tableWidth' ) as string;
-		const tableWidthAttributeNew = viewFigure.getStyle( 'width' )!;
+		const tableWidthAttributeNew = viewFigure.getAttribute( 'width' )!;
 
 		const isTableWidthAttributeChanged = tableWidthAttributeOld !== tableWidthAttributeNew;
 
@@ -741,7 +813,8 @@ export default class TableColumnResizeEditing extends Plugin {
 					// Otherwise clean up the view from the temporary column resizing markup.
 					if ( columnWidthsAttributeOld ) {
 						for ( const viewCol of viewColumns ) {
-							writer.setStyle( 'width', columnWidthsAttributeOld.shift()!, viewCol );
+							writer.setAttribute( 'width', columnWidthsAttributeOld.shift()!, false, viewCol );
+							writer.addClass( 'ck-custom-width', viewCol );
 						}
 					} else {
 						writer.remove( viewColgroup );
@@ -751,9 +824,11 @@ export default class TableColumnResizeEditing extends Plugin {
 						// If the whole table was already resized before, restore the previous table width.
 						// Otherwise clean up the view from the temporary table resizing markup.
 						if ( tableWidthAttributeOld ) {
-							writer.setStyle( 'width', tableWidthAttributeOld, viewFigure );
+							writer.setAttribute( 'width', tableWidthAttributeOld, false, viewFigure );
+							writer.addClass( 'ck-custom-width', viewFigure );
 						} else {
-							writer.removeStyle( 'width', viewFigure );
+							writer.removeAttribute( 'width', '', viewFigure );
+							writer.removeClass( 'ck-custom-width', viewFigure );
 						}
 					}
 
