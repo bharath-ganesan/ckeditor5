@@ -13,34 +13,22 @@ import { EventEmitter } from 'events';
 import * as releaseTools from '@ckeditor/ckeditor5-dev-release-tools';
 import { tools } from '@ckeditor/ckeditor5-dev-utils';
 import { Listr } from 'listr2';
-// import { ListrInquirerPromptAdapter } from '@listr2/prompt-adapter-inquirer';
-// import { confirm } from '@inquirer/prompts';
 
-import updateVersionReferences from './utils/updateversionreferences.mjs';
 import buildPackageUsingRollupCallback from './utils/buildpackageusingrollupcallback.mjs';
-import buildTsAndDllForCKEditor5Root from './utils/buildtsanddllforckeditor5root.mjs';
 import getCKEditor5PackageJson from './utils/getckeditor5packagejson.mjs';
 import parseArguments from './utils/parsearguments.mjs';
-import isCKEditor5PackageFactory from './utils/isckeditor5packagefactory.mjs';
 import compileTypeScriptCallback from './utils/compiletypescriptcallback.mjs';
 import updatePackageEntryPoint from './utils/updatepackageentrypoint.mjs';
-import prepareDllBuildsCallback from './utils/preparedllbuildscallback.mjs';
-import buildCKEditor5BuildsCallback from './utils/buildckeditor5buildscallback.mjs';
 import getListrOptions from './utils/getlistroptions.mjs';
-// import getCdnVersion from './utils/getcdnversion.mjs';
-// import isNonCommittableRelease from './utils/isnoncommittablerelease.mjs';
 import getReleaseDescription from './utils/getreleasedescription.mjs';
 import {
 	PACKAGES_DIRECTORY,
 	RELEASE_DIRECTORY,
-	RELEASE_CDN_DIRECTORY,
-	// RELEASE_ZIP_DIRECTORY,
 	RELEASE_NPM_DIRECTORY
 } from './utils/constants.mjs';
 
 const cliArguments = parseArguments( process.argv.slice( 2 ) );
 const [ latestVersion ] = await getReleaseDescription( cliArguments );
-// const [ latestVersion, versionChangelog ] = await getReleaseDescription( cliArguments );
 const taskOptions = {
 	rendererOptions: {
 		collapseSubtasks: false
@@ -51,97 +39,20 @@ const taskOptions = {
 EventEmitter.defaultMaxListeners = ( cliArguments.concurrency * 5 + 1 );
 
 const tasks = new Listr( [
-	// {
-	// 	title: 'Verify the repository.',
-	// 	task: async () => {
-	// 		const errors = await releaseTools.validateRepositoryToRelease( {
-	// 			version: latestVersion,
-	// 			changes: versionChangelog,
-	// 			branch: cliArguments.branch
-	// 		} );
-
-	// 		if ( !errors.length ) {
-	// 			return;
-	// 		}
-
-	// 		return Promise.reject( 'Aborted due to errors.\n' + errors.map( message => `* ${ message }` ).join( '\n' ) );
-	// 	},
-	// 	skip: () => {
-	// 		if ( isNonCommittableRelease( cliArguments ) ) {
-	// 			return true;
-	// 		}
-
-	// 		// When compiling the packages only, do not validate the release.
-	// 		if ( cliArguments.compileOnly ) {
-	// 			return true;
-	// 		}
-
-	// 		return false;
-	// 	}
-	// },
-	// {
-	// 	title: 'Check the release directory.',
-	// 	task: async ( ctx, task ) => {
-	// 		const isAvailable = await fs.exists( RELEASE_DIRECTORY );
-
-	// 		if ( !isAvailable ) {
-	// 			return fs.ensureDir( RELEASE_DIRECTORY );
-	// 		}
-
-	// 		const isEmpty = ( await fs.readdir( RELEASE_DIRECTORY ) ).length === 0;
-
-	// 		if ( isEmpty ) {
-	// 			return Promise.resolve();
-	// 		}
-
-	// 		// Do not ask when running on CI.
-	// 		if ( cliArguments.ci ) {
-	// 			return fs.emptyDir( RELEASE_DIRECTORY );
-	// 		}
-
-	// 		const shouldContinue = await task.prompt( ListrInquirerPromptAdapter )
-	// 			.run( confirm, {
-	// 				message: 'The release directory must be empty. Continue and remove all files?'
-	// 			} );
-
-	// 		if ( !shouldContinue ) {
-	// 			return Promise.reject( 'Aborting as requested.' );
-	// 		}
-
-	// 		return fs.emptyDir( RELEASE_DIRECTORY );
-	// 	}
-	// },
+	{
+		title: 'Removing dist folder.',
+		task: () => {
+			return tools.shExec( 'yarn run remove:dist', { async: true, verbosity: 'silent' } );
+		}
+	},
 	{
 		title: 'Preparation phase.',
 		task: ( ctx, task ) => {
 			return task.newListr( [
 				{
-					title: 'Updating "version" value.',
+					title: 'Removing release folder.',
 					task: () => {
-						return releaseTools.updateVersions( {
-							packagesDirectory: PACKAGES_DIRECTORY,
-							version: latestVersion
-						} );
-					}
-				},
-				{
-					title: 'Updating dependencies.',
-					task: async () => {
-						return releaseTools.updateDependencies( {
-							// We do not use caret ranges by purpose. See: #14046.
-							version: latestVersion,
-							packagesDirectory: PACKAGES_DIRECTORY,
-							shouldUpdateVersionCallback: await isCKEditor5PackageFactory()
-						} );
-					}
-				},
-				{
-					title: 'Updating references.',
-					task: async ctx => {
-						ctx.updatedFiles = await updateVersionReferences( {
-							version: latestVersion,
-							releaseDate: new Date()
-						} );
+						return tools.shExec( 'yarn run remove:release-folder', { async: true, verbosity: 'silent' } );
 					}
 				}
 			], taskOptions );
@@ -151,7 +62,6 @@ const tasks = new Listr( [
 			if ( cliArguments.compileOnly ) {
 				return true;
 			}
-
 			return false;
 		}
 	},
@@ -159,26 +69,6 @@ const tasks = new Listr( [
 		title: 'Compilation phase.',
 		task: ( ctx, task ) => {
 			return task.newListr( [
-				{
-					title: 'Preparing the "ckeditor5" package files.',
-					task: () => {
-						return buildTsAndDllForCKEditor5Root();
-					}
-				},
-				{
-					title: 'Preparing "ckeditor5-build-*" builds.',
-					task: ( ctx, task ) => {
-						return releaseTools.executeInParallel( {
-							packagesDirectory: PACKAGES_DIRECTORY,
-							packagesDirectoryFilter: packageDirectory => {
-								return upath.basename( packageDirectory ).startsWith( 'ckeditor5-build-' );
-							},
-							listrTask: task,
-							taskToExecute: buildCKEditor5BuildsCallback,
-							concurrency: 2
-						} );
-					}
-				},
 				{
 					title: 'Compiling TypeScript in `ckeditor5-*` packages.',
 					task: ( ctx, task ) => {
@@ -224,23 +114,6 @@ const tasks = new Listr( [
 					}
 				},
 				{
-					title: 'Preparing DLL builds.',
-					task: ( ctx, task ) => {
-						return releaseTools.executeInParallel( {
-							packagesDirectory: RELEASE_DIRECTORY,
-							packagesDirectoryFilter: packageDirectory => {
-								return upath.basename( packageDirectory ).startsWith( 'ckeditor5' );
-							},
-							listrTask: task,
-							taskToExecute: prepareDllBuildsCallback,
-							concurrency: cliArguments.concurrency,
-							taskOptions: {
-								RELEASE_CDN_DIRECTORY
-							}
-						} );
-					}
-				},
-				{
 					title: 'Moving packages to npm release directory.',
 					task: async () => {
 						const movePromises = ( await fs.readdir( RELEASE_DIRECTORY ) )
@@ -254,34 +127,19 @@ const tasks = new Listr( [
 
 						return Promise.all( movePromises );
 					}
-				} // ,
-				// {
-				// 	title: 'Preparing CDN files.',
-				// 	task: async () => {
-				// 		// Complete the DLL build by adding the root, `ckeditor5` package.
-				// 		await fs.copy( `${ RELEASE_NPM_DIRECTORY }/ckeditor5/build`, `./${ RELEASE_CDN_DIRECTORY }/dll/ckeditor5-dll/` );
-
-				// 		// CKEditor 5 CDN.
-				// 		await fs.copy( './dist/browser', `./${ RELEASE_CDN_DIRECTORY }/` );
-				// 		await fs.copy( './dist/translations', `./${ RELEASE_CDN_DIRECTORY }/translations/` );
-
-				// 		// CKEditor 5 ZIP.
-				// 		await fs.copy( './dist/browser', `./${ RELEASE_ZIP_DIRECTORY }/ckeditor5/` );
-				// 		await fs.copy( './dist/translations', `./${ RELEASE_ZIP_DIRECTORY }/ckeditor5/translations/` );
-				// 		await fs.copy( './scripts/release/assets/zip', `./${ RELEASE_ZIP_DIRECTORY }/` );
-				// 		await fs.copy( './LICENSE.md', `./${ RELEASE_ZIP_DIRECTORY }/LICENSE.md` );
-
-				// 		await fs.ensureDir( `./${ RELEASE_CDN_DIRECTORY }/zip` );
-
-				// 		const cdnVersion = getCdnVersion( cliArguments );
-				// 		const zipName = `ckeditor5-${ cdnVersion === 'staging' ? latestVersion : cdnVersion }`;
-
-				// 		await tools.shExec(
-				// 			`zip -r ../../${ RELEASE_CDN_DIRECTORY }/zip/${ zipName }.zip ./*`,
-				// 			{ verbosity: 'error', cwd: RELEASE_ZIP_DIRECTORY }
-				// 		);
-				// 	}
-				// }
+				},
+				{
+					title: 'Copying entry file to dist.',
+					task: () => {
+						return tools.shExec( 'yarn run copy:entry-file', { async: true, verbosity: 'silent' } );
+					}
+				},
+				{
+					title: 'Removing release folder.',
+					task: () => {
+						return tools.shExec( 'yarn run remove:release-folder', { async: true, verbosity: 'silent' } );
+					}
+				}
 			], taskOptions );
 		}
 	},
@@ -306,33 +164,7 @@ const tasks = new Listr( [
 				}
 			], taskOptions );
 		}
-	} // ,
-	// {
-	// 	title: 'Commit & tag phase.',
-	// 	task: ctx => {
-	// 		return releaseTools.commitAndTag( {
-	// 			version: latestVersion,
-	// 			files: [
-	// 				'package.json',
-	// 				`${ PACKAGES_DIRECTORY }/*/package.json`,
-	// 				`${ PACKAGES_DIRECTORY }/ckeditor5-build-*/build/**`,
-	// 				...ctx.updatedFiles
-	// 			]
-	// 		} );
-	// 	},
-	// 	skip: () => {
-	// 		if ( isNonCommittableRelease( cliArguments ) ) {
-	// 			return true;
-	// 		}
-
-	// 		// When compiling the packages only, do not commit anything.
-	// 		if ( cliArguments.compileOnly ) {
-	// 			return true;
-	// 		}
-
-	// 		return false;
-	// 	}
-	// }
+	}
 ], getListrOptions( cliArguments ) );
 
 console.log( 'Version', latestVersion );

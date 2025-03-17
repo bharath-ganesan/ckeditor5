@@ -3,6 +3,7 @@
   "version": "44.3.0",
   "description": "The development environment of CKEditor 5 - the best browser-based rich text editor.",
   "private": true,
+  "main": "index.js",
   "keywords": [
     "ckeditor",
     "ckeditor5",
@@ -213,6 +214,9 @@
     "release:lint-packages": "node ./scripts/release/validatepackages.mjs",
     "release:switch-latest-npm": "node ./scripts/release/switchlatestnpm.mjs",
     "release:clean": "node ./scripts/release/clean.mjs",
+    "remove:release-folder": "rm -rf release",
+    "remove:dist": "rm -rf dist",
+    "copy:entry-file": "cp -r index.js dist/.",
     "clean-up-svg-icons": "node ./scripts/clean-up-svg-icons.mjs",
     "collect-svg-icons": "node scripts/collect-svg-icons.mjs",
     "check-dependencies": "ckeditor5-dev-dependency-checker",

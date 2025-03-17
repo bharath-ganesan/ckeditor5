@@ -11,7 +11,8 @@ export const PACKAGES_DIRECTORY = 'packages';
 export const RELEASE_DIRECTORY = 'release';
 
 export const RELEASE_CDN_DIRECTORY = upath.join( RELEASE_DIRECTORY, 'cdn' );
-export const RELEASE_NPM_DIRECTORY = upath.join( RELEASE_DIRECTORY, 'npm' );
+export const RELEASE_NPM_DIRECTORY = 'dist'; // upath.join( RELEASE_DIRECTORY, 'npm' );
+// export const RELEASE_NPM_DIRECTORY = upath.join( RELEASE_DIRECTORY, 'npm' );
 export const RELEASE_ZIP_DIRECTORY = upath.join( RELEASE_DIRECTORY, 'zip' );
 
 export const S3_COPY_ARGS = '--recursive --metadata-directive REPLACE --cache-control max-age=31536000';
