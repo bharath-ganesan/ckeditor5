@@ -3,7 +3,7 @@
   "version": "44.3.0",
   "description": "The development environment of CKEditor 5 - the best browser-based rich text editor.",
   "private": true,
-  "main": "index.js",
+  "main": "./index.js",
   "keywords": [
     "ckeditor",
     "ckeditor5",
@@ -187,14 +187,6 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "lint-staged": {
-    "**/*.{js,ts,mjs}": [
-      "eslint --quiet"
-    ],
-    "**/*.css": [
-      "stylelint --quiet --allow-empty-input"
-    ]
   },
   "eslintIgnore": [
     "build/**",
