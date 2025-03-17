@@ -20,7 +20,6 @@ import parseArguments from './utils/parsearguments.mjs';
 import compileTypeScriptCallback from './utils/compiletypescriptcallback.mjs';
 import updatePackageEntryPoint from './utils/updatepackageentrypoint.mjs';
 import getListrOptions from './utils/getlistroptions.mjs';
-import getReleaseDescription from './utils/getreleasedescription.mjs';
 import {
 	PACKAGES_DIRECTORY,
 	RELEASE_DIRECTORY,
@@ -28,7 +27,6 @@ import {
 } from './utils/constants.mjs';
 
 const cliArguments = parseArguments( process.argv.slice( 2 ) );
-const [ latestVersion ] = await getReleaseDescription( cliArguments );
 const taskOptions = {
 	rendererOptions: {
 		collapseSubtasks: false
@@ -166,8 +164,6 @@ const tasks = new Listr( [
 		}
 	}
 ], getListrOptions( cliArguments ) );
-
-console.log( 'Version', latestVersion );
 
 tasks.run()
 	.catch( err => {
